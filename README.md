@@ -1,0 +1,102 @@
+# MES 企业移动管理端
+
+基于 uni-app 的跨端工程，面向 Android App、微信小程序及 H5。内置生产驾驶舱、用户/偏好状态、统一请求层和可视化图表，当前使用演示数据。
+
+## 技术栈与版本
+
+- uni-app `3.0.0-5030420261029002`（Vue 3、Vite 模式）
+- Vue `3.4.21`、Vite `5.2.8`、TypeScript `5.6.3`
+- Pinia `2.2.4` + `pinia-plugin-persistedstate`
+- wot-design-uni `1.14.0`（WotResolver 自动按需导入）
+- Apache ECharts `5.6.0` + uni-echarts `2.5.4`（Canvas 渲染）
+- vue-i18n、VueUse、Sass、ESLint、Prettier
+
+> uni-app 的编译依赖保持一致版本；TypeScript 5 / vue-tsc 2 与组件库配套，避免旧版类型检查扫描第三方 `.vue` 源码产生不兼容。运行时仍是 Vue 3 + Vite。
+
+## 启动
+
+要求 Node.js `>=22.12.0`，pnpm `9.15.9`。
+
+```powershell
+corepack enable
+pnpm install
+
+# H5（浏览器调试）
+pnpm run dev:h5
+
+# 微信小程序（编译 + 监听）
+pnpm run dev:mp-weixin
+
+# Android App 资源（编译 + 监听）
+pnpm run dev:app
+```
+
+- 微信小程序：用微信开发者工具导入 `dist/dev/mp-weixin`；首次在 `src/manifest.json` 填写小程序 `appid`。
+- Android：在 HBuilderX 打开本目录，选择“运行到手机或模拟器”；真机需 USB 调试和驱动。正式发布使用 HBuilderX 云打包或 Android 离线 SDK 打包，纯 CLI 构建只产出 App 资源，不直接生成 APK/AAB。
+- App 首次运行前在 `src/manifest.json` 配置 DCloud `appid`。不要将证书、签名密码、后端密钥提交到仓库。
+
+## 构建与质量检查
+
+```powershell
+pnpm run check             # 类型检查 + ESLint + Prettier 检查
+pnpm run type-check
+pnpm run lint:fix
+pnpm run format
+pnpm run build:h5          # dist/build/h5
+pnpm run build:mp-weixin   # dist/build/mp-weixin
+pnpm run build:app         # dist/build/app
+```
+
+CI 位于 `.github/workflows/ci.yml`，包含依赖安装、静态检查及三端构建。运行前安装依赖，依赖提升配置在 `pnpm-workspace.yaml`（pnpm 9 不支持仅由 `package.json` 配置 overrides）。
+
+## 目录约定
+
+```text
+src/
+  api/                    # 业务接口及演示数据适配
+  components/             # AppChart、AppEmpty 等业务公共组件
+  config/                 # 环境默认值
+  locales/                # i18n 文案
+  pages/                  # pages.json 对应页面
+  stores/                 # Pinia 实例与 user / settings
+  styles/                 # 全局业务样式
+  types/                  # API、领域模型
+  utils/                  # request、storage、错误与常量
+  App.vue / main.ts
+  manifest.json           # DCloud、小程序、Android 权限配置
+  pages.json              # 路由、导航、tabBar、easycom
+```
+
+### 请求与状态
+
+- `src/utils/request.ts` 基于 `uni.request`，支持 Bearer Token、超时、HTTP/业务错误归一化、401 清理会话；页面通过 `notifyError` 统一提示，避免重复 Toast。`src/utils/session.ts` 独立管理凭证，避免请求层与 Store 循环依赖。
+- 默认后端响应结构：`{ code: 0, message: string, data: T, requestId?: string }`。请在 `src/utils/constants.ts` 按实际后端调整业务码。
+- `user` 保存登录态和用户信息；`settings` 使用 `uni.setStorageSync` 适配器持久化。不要在未确认安全方案时持久化高敏感信息；生产建议改用短期 Token/安全存储和刷新机制。
+- 新页面先在 `src/pages.json` 注册，再于 `src/api` 定义数据适配器，在 `src/types/api.ts` 补充 DTO。
+- 图表统一通过 `AppChart.vue` 引入 ECharts 模块，避免全量注册；新增图表类型时在这里注册相应的 chart/component。
+
+## 环境配置
+
+`.env.example` 为可提交模板。实际开发可复制为 `.env.development.local` 并修改：
+
+```dotenv
+VITE_APP_TITLE=MES 企业移动管理
+VITE_API_BASE_URL=https://dev-api.example.com
+VITE_API_TIMEOUT=15000
+VITE_USE_MOCK=true
+```
+
+生产环境使用本地未提交的 `.env.production.local`，或在 CI/构建系统注入同名变量。`src/config/index.ts` 提供默认值：开发启用 Mock，生产关闭 Mock。`example.com` 是占位地址，接入真实后端前请替换。
+
+本次 CLI 环境的写文件安全策略禁止直接创建 `.npmrc`、`.env.development` 和 `.env.production`，因此 pnpm 设置集中在 `pnpm-workspace.yaml`，并只提供可提交的 `.env.example`；不是项目不支持 Vite 环境变量。
+
+H5 开发服务器在关闭 Mock 时为 `/api` 配置代理。浏览器受 CORS 约束；小程序需配置 request 合法域名，App 生产接口应使用 HTTPS。`manifest.json` 中小程序的 `urlCheck=false` 只用于开发，不能替代线上合法域名配置。
+
+## 依赖与排错
+
+- pnpm 锁文件为 `pnpm-lock.yaml`；`pnpm-workspace.yaml` 配置依赖提升及 uni-app harmony 间接版本对齐，避免编译器解析不到 Vue 间接依赖。
+- ECharts 5 的 `zrender`、`tslib` 已显式锁定，且 Vite 显式映射 `zrender/lib/core/util.js`，兼容 uni-app 编译器解析；勿轻易移除。
+- `@intlify/message-compiler`、`@intlify/shared` 与 `vue-i18n` 统一为 `9.14.5`，并在 Vite 显式映射 ESM 文件，避免 uni-app 内部提升目录误用旧版 `9.1.9`。
+- `@types/node` 固定为 `20.17.30`，与项目 TypeScript 兼容。
+- 当前依赖安装日志中存在旧版 ESLint、vue-i18n 及部分 uni-app 间接包的弃用提示。它们属于当前锁定技术基线，升级前应单独验证三端兼容性，不能只升级单个 DCloud 包。
+- 仅声明 Android 网络与网络状态权限；新增扫码、定位、推送等能力时同步审查权限、隐私政策和应用市场合规要求。

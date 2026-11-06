@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.cache/
+.pnpm-store/
+coverage/
+unpackage/
+.dsh-permission-recovery/
+src/uni_modules/
+pnpm-lock.yaml
+src/static/

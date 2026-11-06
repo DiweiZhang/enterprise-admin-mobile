@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.cache/
+.pnpm-store/
+.dsh-permission-recovery/
+.DS_Store
+*.local
+*.log
+logs/
+
+# 工具生成文件
+components.d.ts
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# 测试与覆盖率
+coverage/
+
+# uni-app 原生离线打包产物
+unpackage/

@@ -1,0 +1,13 @@
+packages:
+  - '.'
+
+# pnpm 9 设置保留于此；不再写入工具禁止访问的 .npmrc。
+publicHoistPattern:
+  - '@vue*'
+hoistPattern:
+  - '*'
+
+overrides:
+  '@dcloudio/uni-app-harmony': '3.0.0-5030420261029002'
+  '@intlify/message-compiler': '9.14.5'
+  '@intlify/shared': '9.14.5'
