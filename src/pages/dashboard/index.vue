@@ -1,361 +1,514 @@
-<template>
-  <view class="dashboard">
-    <view class="hero">
-      <view>
-        <text class="hero__eyebrow">{{ factoryName }}</text>
-        <text class="hero__title">生产运营驾驶舱</text>
-      </view>
-      <view class="hero__date">
-        <text class="hero__date-label">数据日期</text>
-        <text class="hero__date-value">{{ dashboard?.date || '今日' }}</text>
-      </view>
-    </view>
-
-    <view v-if="loading" class="card loading-card">
-      <wd-loading size="32px" />
-      <text class="text-secondary">正在汇总生产数据...</text>
-    </view>
-
-    <template v-else-if="dashboard">
-      <view class="metrics">
-        <view v-for="metric in dashboard.metrics" :key="metric.label" class="metric">
-          <view class="metric__label">
-            <view class="metric__dot" :class="`metric__dot--${metric.tone}`" />
-            <text>{{ metric.label }}</text>
-          </view>
-          <text class="metric__value">{{ metric.value }}</text>
-          <text class="metric__trend">{{ metric.trend }}</text>
-        </view>
-      </view>
-
-      <view class="card chart-card">
-        <view class="section-header">
-          <view>
-            <text class="section-title">本周生产达成</text>
-            <text class="text-secondary">产量与目标对比 · 单位：件</text>
-          </view>
-          <wd-tag type="success" plain>实时</wd-tag>
-        </view>
-        <app-chart :option="outputOption" />
-        <view class="chart-note">
-          <text>周累计 {{ totalOutput.toLocaleString() }} 件</text>
-          <text class="text-positive">达成率 {{ achievementRate }}%</text>
-        </view>
-      </view>
-
-      <view class="card chart-card">
-        <view class="section-header">
-          <view>
-            <text class="section-title">今日质量分析</text>
-            <text class="text-secondary">首检与过程检汇总</text>
-          </view>
-          <wd-button size="small" plain @click="loadData">刷新</wd-button>
-        </view>
-        <app-chart :option="qualityOption" />
-      </view>
-
-      <view class="card task-card">
-        <view class="section-header">
-          <text class="section-title">待办任务</text>
-          <text class="text-secondary">{{ dashboard.pendingTasks.length }} 项待处理</text>
-        </view>
-        <app-empty v-if="!dashboard.pendingTasks.length" />
-        <view v-for="task in dashboard.pendingTasks" :key="task.id" class="task">
-          <view class="task__body">
-            <text class="task__title">{{ task.title }}</text>
-            <text class="task__id">{{ task.id }}</text>
-          </view>
-          <wd-tag :type="task.priority === '高' ? 'danger' : 'warning'" plain>
-            {{ task.priority }}优先级
-          </wd-tag>
-          <uni-icons type="right" size="16" color="#a1aaba" />
-        </view>
-      </view>
-    </template>
-
-    <view v-else class="card error-card">
-      <uni-icons type="info" size="40" color="#ed8b1b" />
-      <text class="section-title">暂时无法获取数据</text>
-      <text class="text-secondary">请检查网络后重试</text>
-      <wd-button type="primary" @click="loadData">重新加载</wd-button>
-    </view>
-    <wd-toast />
-  </view>
-</template>
-
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import type { EChartsOption } from 'echarts'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import { getDashboard } from '@/api/dashboard'
 import { useUserStore } from '@/stores/modules/user'
 import type { DashboardData } from '@/types/api'
-import { notifyError } from '@/utils/error'
 import AppChart from '@/components/AppChart.vue'
+import AppTabBar from '@/components/AppTabBar.vue'
 import AppEmpty from '@/components/AppEmpty.vue'
+import { notifyError } from '@/utils/error'
 
+const userStore = useUserStore()
+const { profile, factoryName, permissions } = storeToRefs(userStore)
 const dashboard = ref<DashboardData | null>(null)
 const loading = ref(true)
-const userStore = useUserStore()
-const factoryName = computed(() => userStore.profile?.factoryName || '华东智能制造工厂')
+const productionTrend = computed<EChartsOption>(() => ({
+  tooltip: { trigger: 'axis' },
+  grid: { left: 42, right: 16, top: 24, bottom: 26 },
+  xAxis: {
+    type: 'category',
+    data: dashboard.value?.dailyOutput.map((item) => item.date) ?? [],
+    axisLine: { lineStyle: { color: '#dce4eb' } },
+    axisLabel: { color: '#90a1af', fontSize: 10 },
+  },
+  yAxis: {
+    type: 'value',
+    splitLine: { lineStyle: { color: '#edf1f4' } },
+    axisLabel: { color: '#90a1af', fontSize: 10 },
+  },
+  series: [
+    {
+      name: '产量',
+      type: 'bar',
+      barWidth: 15,
+      itemStyle: { color: '#2385ba', borderRadius: [4, 4, 0, 0] },
+      data: dashboard.value?.dailyOutput.map((item) => item.output) ?? [],
+    },
+    {
+      name: '计划',
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { color: '#28b79a', width: 2 },
+      data: dashboard.value?.dailyOutput.map((item) => item.target) ?? [],
+    },
+  ],
+}))
+const taskGroups = [
+  { icon: 'list', label: '生产任务', count: 8, color: '#347dd1' },
+  { icon: 'check-circle', label: '待我检验', count: 3, color: '#8c70c4' },
+  { icon: 'warning', label: '异常处理', count: 2, color: '#e47765' },
+  { icon: 'setting1', label: '设备点检', count: 1, color: '#dc9b42' },
+]
+const quickActions = computed(() =>
+  [
+    { icon: 'list', label: '生产报工', permission: 'production:view', color: '#347dd1' },
+    { icon: 'check-circle', label: '首检巡检', permission: 'quality:view', color: '#0c9b82' },
+    { icon: 'scan', label: '批次追溯', permission: 'traceability:view', color: '#2385ba' },
+    { icon: 'warning', label: '异常上报', permission: 'andon:view', color: '#e47765' },
+  ].filter((item) => permissions.value.includes(item.permission)),
+)
+const taskStyle =
+  '--wot-cell-title-fs:14px;--wot-cell-title-color:#233e52;--wot-cell-value-fs:12px;--wot-cell-value-color:#99a8b4'
 
+function openWorkbench() {
+  uni.reLaunch({ url: '/pages/workbench/index' })
+}
+function openMessages() {
+  uni.reLaunch({ url: '/pages/messages/index' })
+}
+function comingSoon(name: string) {
+  notifyError(`${name}：业务接口接入后开放`)
+}
 async function loadData() {
   loading.value = true
   try {
     dashboard.value = await getDashboard()
   } catch (error) {
-    dashboard.value = null
     notifyError(error)
   } finally {
     loading.value = false
     uni.stopPullDownRefresh()
   }
 }
-
-onShow(loadData)
-onPullDownRefresh(loadData)
-
-const totalOutput = computed(
-  () => dashboard.value?.dailyOutput.reduce((total, item) => total + item.output, 0) || 0,
-)
-const achievementRate = computed(() => {
-  const target = dashboard.value?.dailyOutput.reduce((total, item) => total + item.target, 0) || 0
-  return target ? ((totalOutput.value / target) * 100).toFixed(1) : '0.0'
+onMounted(() => {
+  void loadData()
 })
-
-const outputOption = computed<EChartsOption>(() => ({
-  animationDuration: 600,
-  color: ['#246bfd', '#a8c1ff'],
-  grid: { left: 12, right: 16, top: 56, bottom: 12, containLabel: true },
-  legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: '#7a8499' } },
-  tooltip: { trigger: 'axis' },
-  xAxis: {
-    type: 'category',
-    data: dashboard.value?.dailyOutput.map((item) => item.date) || [],
-    axisLine: { lineStyle: { color: '#e7eaf0' } },
-    axisTick: { show: false },
-    axisLabel: { color: '#7a8499', fontSize: 10 },
-  },
-  yAxis: {
-    type: 'value',
-    splitLine: { lineStyle: { color: '#edf0f5', type: 'dashed' } },
-    axisLabel: { color: '#a1aaba', fontSize: 10 },
-  },
-  series: [
-    {
-      name: '实际产量',
-      type: 'bar',
-      barWidth: 14,
-      itemStyle: { borderRadius: [4, 4, 0, 0] },
-      data: dashboard.value?.dailyOutput.map((item) => item.output) || [],
-    },
-    {
-      name: '计划目标',
-      type: 'line',
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 6,
-      lineStyle: { width: 2 },
-      data: dashboard.value?.dailyOutput.map((item) => item.target) || [],
-    },
-  ],
-}))
-
-const qualityOption = computed<EChartsOption>(() => ({
-  animationDuration: 600,
-  color: ['#12a182', '#ed8b1b', '#e34d59'],
-  tooltip: { trigger: 'item' },
-  legend: { bottom: 12, icon: 'circle', itemWidth: 8, itemHeight: 8 },
-  series: [
-    {
-      name: '检验结果',
-      type: 'pie',
-      center: ['50%', '43%'],
-      radius: ['42%', '65%'],
-      avoidLabelOverlap: true,
-      itemStyle: { borderColor: '#fff', borderWidth: 3, borderRadius: 6 },
-      label: { formatter: '{b}\n{d}%', color: '#5b667a', fontSize: 11 },
-      data: dashboard.value?.quality || [],
-    },
-  ],
-}))
+onShow(() => {
+  if (!userStore.isLoggedIn) uni.redirectTo({ url: '/pages/login/index' })
+})
+onPullDownRefresh(loadData)
 </script>
 
-<style lang="scss" scoped>
-.dashboard {
-  min-height: 100vh;
-  padding: 0 32rpx 40rpx;
+<template>
+  <view class="page dashboard-page">
+    <view class="home-hero safe-top">
+      <view class="home-hero__nav"
+        ><view class="factory-brand"
+          ><view class="factory-brand__icon"><wd-icon name="home1" size="20px" /></view
+          ><text>企业智造 MES</text></view
+        ><view class="home-hero__notification" @click="openMessages"
+          ><wd-icon name="notification" size="23px" /><view class="notification-dot" /></view
+      ></view>
+      <view class="home-hero__welcome"
+        ><view
+          ><text class="home-hero__greeting">早安，{{ profile?.name || '同事' }}</text
+          ><text class="home-hero__factory"
+            ><wd-icon name="location" size="13px" />{{ factoryName }} ·
+            {{ profile?.department || '制造运营中心' }}</text
+          ></view
+        ><view class="home-hero__avatar">{{ profile?.name?.slice(0, 1) || '员' }}</view></view
+      >
+      <view class="shift-card"
+        ><view
+          ><text class="shift-card__label">今日班次</text
+          ><text class="shift-card__value">早班 <text>08:00 – 20:00</text></text></view
+        ><view class="shift-card__right"
+          ><view class="status-dot" /><text>生产中</text
+          ><text class="shift-card__date">{{ dashboard?.date }}</text></view
+        ></view
+      >
+    </view>
+
+    <view class="dashboard-content">
+      <view class="section-heading"
+        ><text class="section-heading__title">我的待办</text
+        ><text class="section-heading__link" @click="openWorkbench"
+          >全部任务 <wd-icon name="arrow-right" size="12px" /></text
+      ></view>
+      <view class="task-grid"
+        ><view
+          v-for="item in taskGroups"
+          :key="item.label"
+          class="task-card"
+          @click="comingSoon(item.label)"
+          ><view
+            class="task-card__icon"
+            :style="{ color: item.color, backgroundColor: `${item.color}12` }"
+            ><wd-icon :name="item.icon" size="22px" /><text class="task-card__count">{{
+              item.count
+            }}</text></view
+          ><text>{{ item.label }}</text></view
+        ></view
+      >
+
+      <view class="section-heading"
+        ><text class="section-heading__title">快捷操作</text
+        ><text class="section-heading__desc">常用功能，一步直达</text></view
+      >
+      <view class="quick-card"
+        ><view
+          v-for="item in quickActions"
+          :key="item.label"
+          class="quick-card__item"
+          @click="comingSoon(item.label)"
+          ><view :style="{ color: item.color, backgroundColor: `${item.color}12` }"
+            ><wd-icon :name="item.icon" size="23px" /></view
+          ><text>{{ item.label }}</text></view
+        ></view
+      >
+
+      <view class="section-heading"
+        ><text class="section-heading__title">今日生产</text
+        ><view class="demo-label">演示数据</view></view
+      >
+      <view v-if="dashboard" class="metric-card"
+        ><view class="metric-card__head"
+          ><text>生产概览</text
+          ><text>较昨日 <text class="metric-card__up">↑ 5.2%</text></text></view
+        ><view class="metric-grid"
+          ><view v-for="metric in dashboard.metrics" :key="metric.label"
+            ><text class="metric-grid__label">{{ metric.label }}</text
+            ><view class="metric-grid__value">{{ metric.value }}</view
+            ><view class="metric-grid__progress"
+              ><view
+                :style="{
+                  width: `${Math.min(Number.parseFloat(metric.value), 100)}%`,
+                }" /></view></view></view
+      ></view>
+
+      <view class="section-heading"
+        ><text class="section-heading__title">近七日产量</text
+        ><view class="chart-legend"><text />实际产量</view></view
+      >
+      <view class="chart-card"><AppChart :option="productionTrend" height="190px" /></view>
+
+      <view class="section-heading"
+        ><text class="section-heading__title">待办事项</text
+        ><text class="section-heading__link" @click="openWorkbench"
+          >查看全部 <wd-icon name="arrow-right" size="12px" /></text
+      ></view>
+      <view class="todo-card"
+        ><wd-cell-group :border="false"
+          ><wd-cell
+            v-for="task in dashboard?.pendingTasks ?? []"
+            :key="task.id"
+            :title="task.title"
+            :label="task.id"
+            :value="task.priority"
+            :custom-style="taskStyle"
+            clickable
+            @click="comingSoon(task.title)"
+            ><template #icon><view class="todo-card__marker" /></template></wd-cell></wd-cell-group
+        ><AppEmpty v-if="!loading && !dashboard?.pendingTasks.length"
+      /></view>
+      <view class="dashboard-content__footer">数据驱动制造 · 协同创造价值</view>
+    </view>
+    <AppTabBar current="dashboard" />
+  </view>
+</template>
+
+<style scoped lang="scss">
+.dashboard-page {
+  background: #f4f7f9;
 }
-
-.hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 42rpx 4rpx 36rpx;
-  gap: 24rpx;
-
-  &__eyebrow,
-  &__title {
-    display: block;
-  }
-
-  &__eyebrow {
-    margin-bottom: 10rpx;
-    color: $color-text-secondary;
-    font-size: 24rpx;
-  }
-
-  &__title {
-    font-size: 42rpx;
-    font-weight: 700;
-    letter-spacing: 1rpx;
-  }
-
-  &__date {
-    padding: 12rpx 18rpx;
-    text-align: center;
-    background: #e9efff;
-    border-radius: 16rpx;
-
-    &-label,
-    &-value {
-      display: block;
-      white-space: nowrap;
-    }
-
-    &-label {
-      margin-bottom: 4rpx;
-      color: #6881b5;
-      font-size: 20rpx;
-    }
-
-    &-value {
-      color: #246bfd;
-      font-size: 24rpx;
-      font-weight: 600;
-    }
-  }
+.home-hero {
+  padding: 44rpx 32rpx 68rpx;
+  color: #fff;
+  background: linear-gradient(125deg, #102a43, #174458 72%, #176464);
+  border-radius: 0 0 36rpx 36rpx;
 }
-
-.metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
-  margin-bottom: 24rpx;
-}
-
-.metric {
-  width: calc(50% - 10rpx);
-  padding: 26rpx;
-  background: #fff;
-  border-radius: 20rpx;
-
-  &__label {
-    display: flex;
-    align-items: center;
-    color: $color-text-secondary;
-    font-size: 24rpx;
-    gap: 10rpx;
-  }
-
-  &__dot {
-    width: 12rpx;
-    height: 12rpx;
-    background: $uni-color-primary;
-    border-radius: 50%;
-
-    &--success {
-      background: $uni-color-success;
-    }
-
-    &--warning {
-      background: $uni-color-warning;
-    }
-  }
-
-  &__value,
-  &__trend {
-    display: block;
-  }
-
-  &__value {
-    margin: 18rpx 0 8rpx;
-    font-size: 44rpx;
-    font-weight: 700;
-  }
-
-  &__trend {
-    color: #8a94a6;
-    font-size: 22rpx;
-  }
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16rpx;
-}
-
-.chart-card {
-  padding: 28rpx 20rpx 22rpx;
-
-  .section-header {
-    padding: 0 12rpx;
-  }
-}
-
-.chart-note {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 12rpx;
-  color: $color-text-secondary;
-  font-size: 24rpx;
-}
-
-.text-positive {
-  color: $uni-color-success;
-}
-
-.task {
+.home-hero__nav,
+.home-hero__welcome,
+.shift-card {
   display: flex;
   align-items: center;
-  padding: 26rpx 0;
-  border-bottom: 1rpx solid #edf0f5;
-  gap: 18rpx;
-
-  &:last-child {
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-
-  &__body {
-    flex: 1;
-    min-width: 0;
-  }
-
-  &__title,
-  &__id {
-    display: block;
-  }
-
-  &__title {
-    margin-bottom: 8rpx;
-    font-size: 26rpx;
-  }
-
-  &__id {
-    color: $color-text-secondary;
-    font-size: 22rpx;
-  }
+  justify-content: space-between;
 }
-
-.loading-card,
-.error-card {
+.factory-brand {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 25rpx;
+  font-weight: 500;
+  letter-spacing: 1rpx;
+}
+.factory-brand__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  color: #6ee7d0;
+  border-radius: 13rpx;
+  background: rgba(255, 255, 255, 0.09);
+}
+.home-hero__notification {
+  position: relative;
+  padding: 10rpx;
+  color: #c4d7df;
+}
+.notification-dot {
+  position: absolute;
+  top: 8rpx;
+  right: 10rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border: 3rpx solid #173f51;
+  border-radius: 50%;
+  background: #5de2c2;
+}
+.home-hero__welcome {
+  margin-top: 42rpx;
+}
+.home-hero__greeting {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+.home-hero__factory {
+  display: flex;
+  align-items: center;
+  gap: 5rpx;
+  margin-top: 14rpx;
+  font-size: 23rpx;
+  color: #b0c8d2;
+}
+.home-hero__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 82rpx;
+  height: 82rpx;
+  color: #bff1e2;
+  font-size: 33rpx;
+  border: 2rpx solid rgba(166, 232, 215, 0.3);
+  border-radius: 50%;
+  background: rgba(99, 206, 181, 0.17);
+}
+.shift-card {
+  margin-top: 34rpx;
+  padding: 24rpx;
+  border: 1rpx solid rgba(154, 210, 209, 0.12);
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.065);
+}
+.shift-card__label {
+  display: block;
+  color: #a0bdc9;
+  font-size: 20rpx;
+}
+.shift-card__value {
+  display: block;
+  margin-top: 9rpx;
+  font-size: 28rpx;
+}
+.shift-card__value text {
+  margin-left: 14rpx;
+  color: #bbced5;
+  font-size: 22rpx;
+}
+.shift-card__right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #78ddc0;
+  font-size: 21rpx;
+}
+.status-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #65d9b6;
+}
+.shift-card__date {
+  margin-left: 12rpx;
+  color: #adc2cd;
+}
+.dashboard-content {
+  padding: 0 24rpx 40rpx;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 34rpx 6rpx 22rpx;
+}
+.section-heading__title {
+  font-size: 31rpx;
+  font-weight: 600;
+  color: #233d51;
+}
+.section-heading__link {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  font-size: 22rpx;
+  color: #8c9da9;
+}
+.section-heading__desc {
+  color: #a1aeb9;
+  font-size: 20rpx;
+}
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+}
+.task-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 96rpx 24rpx;
-  gap: 24rpx;
+  gap: 18rpx;
+  padding: 24rpx 6rpx;
+  font-size: 22rpx;
+  color: #647b8d;
+  background: #fff;
+  border: 1rpx solid #edf1f4;
+  border-radius: 16rpx;
+}
+.task-card__icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 18rpx;
+}
+.task-card__count {
+  position: absolute;
+  top: -12rpx;
+  right: -15rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28rpx;
+  height: 28rpx;
+  color: #fff;
+  font-size: 18rpx;
+  border: 3rpx solid #fff;
+  border-radius: 14rpx;
+  background: #eb6b68;
+}
+.quick-card {
+  display: flex;
+  justify-content: space-around;
+  padding: 28rpx 12rpx;
+  border: 1rpx solid #e9eff1;
+  border-radius: 18rpx;
+  background: #fff;
+}
+.quick-card__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15rpx;
+  color: #637a8a;
+  font-size: 23rpx;
+}
+.quick-card__item view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 20rpx;
+}
+.demo-label {
+  padding: 5rpx 12rpx;
+  font-size: 18rpx;
+  color: #899eac;
+  border-radius: 6rpx;
+  background: #e9eff3;
+}
+.metric-card {
+  padding: 26rpx;
+  border-radius: 18rpx;
+  background: #fff;
+  border: 1rpx solid #e9eff1;
+}
+.metric-card__head {
+  display: flex;
+  justify-content: space-between;
+  color: #3d5568;
+  font-size: 24rpx;
+}
+.metric-card__head > text:last-child {
+  font-size: 21rpx;
+  color: #9aabb7;
+}
+.metric-card__up {
+  color: #23a587;
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28rpx 36rpx;
+  margin-top: 30rpx;
+}
+.metric-grid__label {
+  color: #8b9eab;
+  font-size: 22rpx;
+}
+.metric-grid__value {
+  margin-top: 9rpx;
+  font-size: 39rpx;
+  font-weight: 600;
+  color: #243e53;
+}
+.metric-grid__progress {
+  height: 6rpx;
+  margin-top: 13rpx;
+  border-radius: 4rpx;
+  background: #edf2f4;
+}
+.metric-grid__progress view {
+  height: 100%;
+  border-radius: 4rpx;
+  background: #38b69e;
+}
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #9aaab7;
+  font-size: 20rpx;
+}
+.chart-legend text {
+  width: 12rpx;
+  height: 12rpx;
+  background: #2385ba;
+  border-radius: 3rpx;
+}
+.chart-card {
+  padding: 20rpx 8rpx 6rpx;
+  border: 1rpx solid #e9eff1;
+  border-radius: 18rpx;
+  background: #fff;
+}
+.todo-card {
+  overflow: hidden;
+  border: 1rpx solid #e9eff1;
+  border-radius: 18rpx;
+  background: #fff;
+}
+.todo-card__marker {
+  width: 8rpx;
+  height: 30rpx;
+  margin-right: 15rpx;
+  background: #36b69c;
+  border-radius: 5rpx;
+}
+.dashboard-content__footer {
+  margin-top: 40rpx;
+  text-align: center;
+  color: #b0bdc6;
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
 }
 </style>

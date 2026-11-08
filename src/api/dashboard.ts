@@ -3,7 +3,7 @@ import type { DashboardData } from '@/types/api'
 import { get } from '@/utils/request'
 
 const mockDashboard: DashboardData = {
-  date: '今日',
+  date: new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }),
   metrics: [
     { label: '当日产量', value: '1,286', trend: '较昨日 +8.2%', tone: 'primary' },
     { label: '一次合格率', value: '98.6%', trend: '目标 ≥ 98%', tone: 'success' },

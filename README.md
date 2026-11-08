@@ -1,6 +1,14 @@
 # MES 企业移动管理端
 
-基于 uni-app 的跨端工程，面向 Android App、微信小程序及 H5。内置生产驾驶舱、用户/偏好状态、统一请求层和可视化图表，当前使用演示数据。
+基于 uni-app 的跨端工程，面向 Android App、微信小程序及 H5。已实现工业风登录页、首页、权限工作台、扫码、消息和个人中心，当前使用演示数据。
+
+## 界面预览与权限演示
+
+- 默认账号 `factory-manager`，密码 `mes2026`：显示全部 10 个业务分组。
+- 一线员工账号 `line-operator`，密码 `mes2026`：显示 8 个现场业务分组，也可在“我的 → 角色权限预览”切换。
+- 底部入口为首页、工作台、扫码、消息、我的，采用 `AppTabBar` 自定义组件实现跨端一致的中央扫码操作。
+- 生产数据、待办和消息是明确标识的演示数据；未接后端的业务操作只提示待接入，不模拟真实提交。扫码支持 App/小程序调用摄像头，H5 使用手动输入。
+- 登录态和用户资料保存在本地，生产接入真实认证时应按后端双 Token、用户信息和权限接口调整。
 
 ## 技术栈与版本
 
@@ -54,7 +62,8 @@ CI 位于 `.github/workflows/ci.yml`，包含依赖安装、静态检查及三�
 ```text
 src/
   api/                    # 业务接口及演示数据适配
-  components/             # AppChart、AppEmpty 等业务公共组件
+  components/             # AppChart、AppTabBar 等公共组件
+  data/                   # 业务分组及演示权限映射
   config/                 # 环境默认值
   locales/                # i18n 文案
   pages/                  # pages.json 对应页面
@@ -64,7 +73,7 @@ src/
   utils/                  # request、storage、错误与常量
   App.vue / main.ts
   manifest.json           # DCloud、小程序、Android 权限配置
-  pages.json              # 路由、导航、tabBar、easycom
+  pages.json              # 路由、自定义导航、easycom
 ```
 
 ### 请求与状态

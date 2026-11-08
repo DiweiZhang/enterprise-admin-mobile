@@ -7,40 +7,39 @@
   },
   "pages": [
     {
+      "path": "pages/login/index",
+      "style": { "navigationBarTitleText": "企业智造", "navigationStyle": "custom" }
+    },
+    {
       "path": "pages/dashboard/index",
       "style": {
-        "navigationBarTitleText": "生产驾驶舱",
+        "navigationBarTitleText": "首页",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
     {
+      "path": "pages/workbench/index",
+      "style": { "navigationBarTitleText": "工作台", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/scan/index",
+      "style": { "navigationBarTitleText": "扫码", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/messages/index",
+      "style": { "navigationBarTitleText": "消息中心", "navigationStyle": "custom" }
+    },
+    {
       "path": "pages/profile/index",
-      "style": {
-        "navigationBarTitleText": "系统设置"
-      }
+      "style": { "navigationBarTitleText": "我的", "navigationStyle": "custom" }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "MES 企业移动管理",
-    "navigationBarBackgroundColor": "#246bfd",
-    "backgroundColor": "#f4f6fa",
+    "navigationBarTitleText": "企业智造 MES",
+    "navigationBarBackgroundColor": "#102a43",
+    "backgroundColor": "#f4f7f9",
     "backgroundTextStyle": "dark"
-  },
-  "tabBar": {
-    "color": "#7a8499",
-    "selectedColor": "#246bfd",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "white",
-    "list": [
-      {
-        "pagePath": "pages/dashboard/index",
-        "text": "驾驶舱"
-      },
-      {
-        "pagePath": "pages/profile/index",
-        "text": "设置"
-      }
-    ]
   }
 }

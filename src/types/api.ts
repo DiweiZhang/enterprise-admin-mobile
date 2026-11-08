@@ -10,6 +10,9 @@ export interface UserProfile {
   name: string
   roles: string[]
   factoryName: string
+  department?: string
+  team?: string
+  permissions?: string[]
 }
 
 export interface ProductionMetric {

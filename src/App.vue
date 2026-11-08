@@ -3,8 +3,20 @@ import { onHide, onLaunch, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/modules/user'
 
 onLaunch(() => {
-  useUserStore().restoreSession()
+  const userStore = useUserStore()
+  userStore.restoreSession()
+  const pages = getCurrentPages()
+  const currentRoute = pages[pages.length - 1]?.route || 'pages/login/index'
+  const target =
+    userStore.isLoggedIn && currentRoute === 'pages/login/index'
+      ? '/pages/dashboard/index'
+      : !userStore.isLoggedIn && currentRoute !== 'pages/login/index'
+        ? '/pages/login/index'
+        : ''
+  if (target) uni.reLaunch({ url: target })
 })
+
+// 自定义底部导航让扫码成为主操作，并统一 App、H5 和小程序的页面结构。
 
 onShow(() => {
   // 可在此刷新需要回到前台后立即同步的数据。
@@ -34,5 +46,9 @@ scroll-view {
 
 button::after {
   border: none;
+}
+
+.safe-top {
+  padding-top: calc(24rpx + var(--status-bar-height));
 }
 </style>

@@ -11,5 +11,6 @@ export const uniStorage: StorageLike = {
 
 export const storageKeys = {
   token: 'mes_access_token',
+  profile: 'mes_user_profile',
   settings: 'mes_settings',
 } as const
