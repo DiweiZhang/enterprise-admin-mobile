@@ -76,10 +76,11 @@ function query() {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin: 0 32rpx;
   padding: 56rpx 32rpx 56rpx;
   color: #fff;
   background: linear-gradient(135deg, #102a43, #17485a);
-  border-radius: 0 0 36rpx 36rpx;
+  border-radius: 28rpx;
 }
 .scan-hero__eyebrow {
   font-size: 16rpx;
@@ -169,7 +170,7 @@ function query() {
   font-size: 22rpx;
 }
 .scan-content {
-  padding: 30rpx 24rpx;
+  padding: 30rpx 32rpx;
 }
 .manual-card {
   padding: 28rpx;
@@ -201,7 +202,7 @@ function query() {
 }
 .scan-content__label {
   display: block;
-  margin: 34rpx 6rpx 20rpx;
+  margin: 34rpx 0 20rpx;
   color: #869aa9;
   font-size: 24rpx;
 }

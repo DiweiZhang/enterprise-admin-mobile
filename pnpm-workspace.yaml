@@ -1,7 +1,10 @@
 packages:
   - '.'
 
-# pnpm 9 设置保留于此；不再写入工具禁止访问的 .npmrc。
+# 项目级依赖仓库与缓存，避免 pnpm 在 Windows 回退到盘符根目录。
+storeDir: '.pnpm-store'
+cacheDir: '.cache/pnpm'
+
 publicHoistPattern:
   - '@vue*'
 hoistPattern:

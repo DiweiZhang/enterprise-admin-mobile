@@ -89,10 +89,6 @@ function navigate(path: string) {
   border-radius: 25rpx;
   background: linear-gradient(135deg, #17465b, #27aa91);
   box-shadow: 0 6rpx 14rpx rgba(22, 142, 128, 0.22);
-  transform: rotate(-4deg);
-}
-.tabbar__scan-icon :deep(.wd-icon) {
-  transform: rotate(4deg);
 }
 .tabbar__badge {
   position: absolute;

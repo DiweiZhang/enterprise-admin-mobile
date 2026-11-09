@@ -12,7 +12,7 @@ import AppEmpty from '@/components/AppEmpty.vue'
 import { notifyError } from '@/utils/error'
 
 const userStore = useUserStore()
-const { profile, factoryName, permissions } = storeToRefs(userStore)
+const { permissions } = storeToRefs(userStore)
 const dashboard = ref<DashboardData | null>(null)
 const loading = ref(true)
 const productionTrend = computed<EChartsOption>(() => ({
@@ -67,9 +67,6 @@ const taskStyle =
 function openWorkbench() {
   uni.reLaunch({ url: '/pages/workbench/index' })
 }
-function openMessages() {
-  uni.reLaunch({ url: '/pages/messages/index' })
-}
 function comingSoon(name: string) {
   notifyError(`${name}：业务接口接入后开放`)
 }
@@ -95,34 +92,6 @@ onPullDownRefresh(loadData)
 
 <template>
   <view class="page dashboard-page">
-    <view class="home-hero safe-top">
-      <view class="home-hero__nav"
-        ><view class="factory-brand"
-          ><view class="factory-brand__icon"><wd-icon name="home1" size="20px" /></view
-          ><text>企业智造 MES</text></view
-        ><view class="home-hero__notification" @click="openMessages"
-          ><wd-icon name="notification" size="23px" /><view class="notification-dot" /></view
-      ></view>
-      <view class="home-hero__welcome"
-        ><view
-          ><text class="home-hero__greeting">早安，{{ profile?.name || '同事' }}</text
-          ><text class="home-hero__factory"
-            ><wd-icon name="location" size="13px" />{{ factoryName }} ·
-            {{ profile?.department || '制造运营中心' }}</text
-          ></view
-        ><view class="home-hero__avatar">{{ profile?.name?.slice(0, 1) || '员' }}</view></view
-      >
-      <view class="shift-card"
-        ><view
-          ><text class="shift-card__label">今日班次</text
-          ><text class="shift-card__value">早班 <text>08:00 – 20:00</text></text></view
-        ><view class="shift-card__right"
-          ><view class="status-dot" /><text>生产中</text
-          ><text class="shift-card__date">{{ dashboard?.date }}</text></view
-        ></view
-      >
-    </view>
-
     <view class="dashboard-content">
       <view class="section-heading"
         ><text class="section-heading__title">我的待办</text
@@ -215,128 +184,17 @@ onPullDownRefresh(loadData)
 .dashboard-page {
   background: #f4f7f9;
 }
-.home-hero {
-  padding: 44rpx 32rpx 68rpx;
-  color: #fff;
-  background: linear-gradient(125deg, #102a43, #174458 72%, #176464);
-  border-radius: 0 0 36rpx 36rpx;
-}
-.home-hero__nav,
-.home-hero__welcome,
-.shift-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.factory-brand {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  font-size: 25rpx;
-  font-weight: 500;
-  letter-spacing: 1rpx;
-}
-.factory-brand__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48rpx;
-  height: 48rpx;
-  color: #6ee7d0;
-  border-radius: 13rpx;
-  background: rgba(255, 255, 255, 0.09);
-}
-.home-hero__notification {
-  position: relative;
-  padding: 10rpx;
-  color: #c4d7df;
-}
-.notification-dot {
-  position: absolute;
-  top: 8rpx;
-  right: 10rpx;
-  width: 10rpx;
-  height: 10rpx;
-  border: 3rpx solid #173f51;
-  border-radius: 50%;
-  background: #5de2c2;
-}
-.home-hero__welcome {
-  margin-top: 42rpx;
-}
-.home-hero__greeting {
-  display: block;
-  font-size: 40rpx;
-  font-weight: 600;
-  letter-spacing: 2rpx;
-}
-.home-hero__factory {
-  display: flex;
-  align-items: center;
-  gap: 5rpx;
-  margin-top: 14rpx;
-  font-size: 23rpx;
-  color: #b0c8d2;
-}
-.home-hero__avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 82rpx;
-  height: 82rpx;
-  color: #bff1e2;
-  font-size: 33rpx;
-  border: 2rpx solid rgba(166, 232, 215, 0.3);
-  border-radius: 50%;
-  background: rgba(99, 206, 181, 0.17);
-}
-.shift-card {
-  margin-top: 34rpx;
-  padding: 24rpx;
-  border: 1rpx solid rgba(154, 210, 209, 0.12);
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.065);
-}
-.shift-card__label {
-  display: block;
-  color: #a0bdc9;
-  font-size: 20rpx;
-}
-.shift-card__value {
-  display: block;
-  margin-top: 9rpx;
-  font-size: 28rpx;
-}
-.shift-card__value text {
-  margin-left: 14rpx;
-  color: #bbced5;
-  font-size: 22rpx;
-}
-.shift-card__right {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  color: #78ddc0;
-  font-size: 21rpx;
-}
-.status-dot {
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 50%;
-  background: #65d9b6;
-}
-.shift-card__date {
-  margin-left: 12rpx;
-  color: #adc2cd;
-}
 .dashboard-content {
-  padding: 0 24rpx 40rpx;
+  padding-top: var(--status-bar-height, 0px);
+  padding-right: 32rpx;
+  padding-bottom: 40rpx;
+  padding-left: 32rpx;
 }
 .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 34rpx 6rpx 22rpx;
+  margin: 34rpx 0 22rpx;
 }
 .section-heading__title {
   font-size: 31rpx;
@@ -364,7 +222,7 @@ onPullDownRefresh(loadData)
   flex-direction: column;
   align-items: center;
   gap: 18rpx;
-  padding: 24rpx 6rpx;
+  padding: 24rpx 0;
   font-size: 22rpx;
   color: #647b8d;
   background: #fff;

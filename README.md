@@ -23,7 +23,7 @@
 
 ## 启动
 
-要求 Node.js `>=22.12.0`，pnpm `9.15.9`。
+要求 Node.js `>=22.12.0`，pnpm `9.15.9`。项目级 Store 固定为 `<项目目录>/.pnpm-store`，不会回退写入 `F:\.pnpm-store`；pnpm 缓存位于 `.cache/pnpm`。首次修改配置后需重新执行 `pnpm install`，使 `node_modules` 关联到项目内 Store。
 
 ```powershell
 corepack enable
@@ -103,7 +103,8 @@ H5 开发服务器在关闭 Mock 时为 `/api` 配置代理。浏览器受 CORS 
 
 ## 依赖与排错
 
-- pnpm 锁文件为 `pnpm-lock.yaml`；`pnpm-workspace.yaml` 配置依赖提升及 uni-app harmony 间接版本对齐，避免编译器解析不到 Vue 间接依赖。
+- pnpm 锁文件为 `pnpm-lock.yaml`；`pnpm-workspace.yaml` 配置项目级 `storeDir: '.pnpm-store'`、`cacheDir: '.cache/pnpm'`、依赖提升及 uni-app harmony 间接版本对齐。可用 `pnpm store path` 检查实际 Store；其末尾的 `v11` 是 Store 格式版本，`node_modules/.modules.yaml` 中的 `v3` 是安装元数据版本，两者都不是旧盘符路径。
+- Vite 开发服务器忽略 `.pnpm-store`、`.cache`、`.git`、`dist` 及编辑器临时文件的监听；这些文件不需要热更新，也避免 Windows 监听缓存或正在替换的临时文件时出现 `UNKNOWN` / `EBUSY` 错误。
 - ECharts 5 的 `zrender`、`tslib` 已显式锁定，且 Vite 显式映射 `zrender/lib/core/util.js`，兼容 uni-app 编译器解析；勿轻易移除。
 - `@intlify/message-compiler`、`@intlify/shared` 与 `vue-i18n` 统一为 `9.14.5`，并在 Vite 显式映射 ESM 文件，避免 uni-app 内部提升目录误用旧版 `9.1.9`。
 - `@types/node` 固定为 `20.17.30`，与项目 TypeScript 兼容。

@@ -1,16 +1,30 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppTabBar from '@/components/AppTabBar.vue'
 import { useUserStore } from '@/stores/modules/user'
 import { useSettingsStore } from '@/stores/modules/settings'
+import { getDashboard } from '@/api/dashboard'
 import { notifyError } from '@/utils/error'
 
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
-const { profile, factoryName, permissions } = storeToRefs(userStore)
-const { notificationsEnabled, autoSync } = storeToRefs(settingsStore)
+const { profile, factoryName } = storeToRefs(userStore)
+const today = ref('')
+const greeting = ref('你好')
+
 const cellStyle =
   '--wot-cell-title-fs:14px;--wot-cell-title-color:#344e61;--wot-cell-value-fs:12px;--wot-cell-value-color:#8d9eaa'
+
+onMounted(() => {
+  const hour = new Date().getHours()
+  greeting.value = hour < 12 ? '早安' : hour < 18 ? '下午好' : '晚上好'
+  void getDashboard()
+    .then((dashboard) => {
+      today.value = dashboard.date
+    })
+    .catch(notifyError)
+})
 
 function logout() {
   uni.showModal({
@@ -44,26 +58,29 @@ function previewOperator() {
 
 <template>
   <view class="page profile-page">
-    <view class="profile-hero safe-top"
-      ><text class="profile-hero__title">我的</text
-      ><view class="profile-identity"
-        ><view class="profile-identity__avatar"
-          >{{ profile?.name?.slice(0, 1) || '员' }}<view /></view
-        ><view class="profile-identity__info"
-          ><text class="profile-identity__name">{{ profile?.name || '演示用户' }}</text
-          ><text class="profile-identity__department"
-            >{{ profile?.department }} · {{ profile?.team }}</text
-          ><view class="profile-identity__role"
-            ><wd-icon name="user-circle" size="12px" />{{
-              profile?.roles.includes('line-operator') ? '一线员工' : '工厂管理员'
-            }}</view
-          ></view
-        ><wd-icon name="arrow-right" size="20px" color="#a6c6cf" /></view
-      ><view class="profile-factory"
-        ><wd-icon name="home1" size="16px" /><text>{{ factoryName }}</text
-        ><text>已认证</text></view
-      ></view
-    >
+    <view class="profile-header safe-top">
+      <view class="profile-header__nav">
+        <view class="profile-header__welcome">
+          <text class="profile-header__greeting"
+            >{{ greeting }}，{{ profile?.name || '同事' }}</text
+          >
+          <text class="profile-header__factory">
+            {{ factoryName }} · {{ profile?.department || '制造运营中心' }}
+          </text>
+        </view>
+        <view class="profile-header__actions">
+          <view class="profile-header__avatar">{{ profile?.name?.slice(0, 1) || '员' }}</view>
+        </view>
+      </view>
+      <view class="shift-bar">
+        <view class="shift-bar__main">
+          <text class="shift-bar__label">早班</text>
+          <text class="shift-bar__time">08:00 – 20:00</text>
+          <text class="shift-bar__date">{{ today }}</text>
+        </view>
+        <view class="shift-bar__status"><view class="status-dot" />生产中</view>
+      </view>
+    </view>
     <view class="profile-content"
       ><view class="profile-section"
         ><text class="profile-section__label">账号与安全</text
@@ -72,7 +89,7 @@ function previewOperator() {
             ><template #icon><wd-icon name="user" size="20px" /></template></wd-cell
           ><wd-cell
             title="角色权限预览"
-            :value="`${permissions.length} 个业务分组`"
+            :value="`${userStore.permissions.length} 个业务分组`"
             :custom-style="cellStyle"
             clickable
             @click="previewOperator"
@@ -89,10 +106,10 @@ function previewOperator() {
         ><view class="profile-card"
           ><wd-cell title="消息通知" :custom-style="cellStyle"
             ><template #icon><wd-icon name="notification" size="20px" /></template
-            ><wd-switch v-model="notificationsEnabled" /></wd-cell
+            ><wd-switch v-model="settingsStore.notificationsEnabled" /></wd-cell
           ><wd-cell title="数据自动同步" :custom-style="cellStyle"
             ><template #icon><wd-icon name="chart" size="20px" /></template
-            ><wd-switch v-model="autoSync" /></wd-cell
+            ><wd-switch v-model="settingsStore.autoSync" /></wd-cell
           ><wd-cell
             title="清除缓存"
             value="仅清理业务缓存"
@@ -125,95 +142,103 @@ function previewOperator() {
 .profile-page {
   background: #f4f7f9;
 }
-.profile-hero {
-  padding: 56rpx 32rpx 62rpx;
-  color: #fff;
-  background: linear-gradient(125deg, #102a43, #17485a 72%, #176464);
-  border-radius: 0 0 36rpx 36rpx;
+.profile-header {
+  padding: 32rpx 32rpx 22rpx;
+  color: #19364c;
+  border-bottom: 1rpx solid #e5ecef;
 }
-.profile-hero__title {
-  font-size: 40rpx;
-  font-weight: 600;
-}
-.profile-identity {
+.profile-header__nav,
+.profile-header__actions,
+.shift-bar,
+.shift-bar__main,
+.shift-bar__status {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  margin-top: 44rpx;
 }
-.profile-identity__avatar {
-  position: relative;
+.profile-header__nav,
+.shift-bar {
+  justify-content: space-between;
+}
+.profile-header__actions {
+  flex-shrink: 0;
+  gap: 18rpx;
+  margin-left: 20rpx;
+}
+.profile-header__welcome {
+  min-width: 0;
+}
+.profile-header__greeting {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+.profile-header__factory {
+  display: block;
+  margin-top: 10rpx;
+  overflow: hidden;
+  color: #8298a5;
+  font-size: 22rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-header__avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 108rpx;
-  height: 108rpx;
-  font-size: 44rpx;
-  color: #c1f3e2;
-  border: 2rpx solid #548e94;
+  width: 64rpx;
+  height: 64rpx;
+  color: #168e80;
+  font-size: 27rpx;
+  border: 1rpx solid #d8e9e4;
   border-radius: 50%;
-  background: #286271;
+  background: #e6f3ef;
 }
-.profile-identity__avatar view {
-  position: absolute;
-  right: 3rpx;
-  bottom: 4rpx;
-  width: 18rpx;
-  height: 18rpx;
-  border: 4rpx solid #1b4a5a;
-  background: #55d2ae;
-  border-radius: 50%;
+.shift-bar {
+  margin-top: 26rpx;
+  padding: 18rpx 22rpx;
+  border: 1rpx solid #e1ece9;
+  border-radius: 14rpx;
+  background: #edf5f3;
 }
-.profile-identity__info {
-  flex: 1;
+.shift-bar__main {
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
-.profile-identity__name {
-  display: block;
-  font-size: 36rpx;
+.shift-bar__label {
+  color: #285a59;
+  font-size: 25rpx;
   font-weight: 600;
 }
-.profile-identity__department {
-  display: block;
-  margin-top: 10rpx;
-  color: #b0c9d3;
+.shift-bar__time {
+  color: #6d8b92;
   font-size: 22rpx;
 }
-.profile-identity__role {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  width: fit-content;
-  margin-top: 12rpx;
-  padding: 5rpx 12rpx;
-  color: #a4e0d2;
-  font-size: 19rpx;
-  border-radius: 6rpx;
-  background: rgba(87, 205, 177, 0.13);
+.shift-bar__date {
+  color: #91a5ad;
+  font-size: 21rpx;
 }
-.profile-factory {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  margin-top: 34rpx;
-  padding-top: 24rpx;
-  font-size: 23rpx;
-  color: #afc7d2;
-  border-top: 1rpx solid rgba(178, 211, 218, 0.13);
+.shift-bar__status {
+  gap: 8rpx;
+  margin-left: 12rpx;
+  color: #168e80;
+  font-size: 21rpx;
 }
-.profile-factory text:last-child {
-  margin-left: auto;
-  font-size: 20rpx;
-  color: #77d9bd;
+.status-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #35b897;
 }
 .profile-content {
-  padding: 10rpx 24rpx 40rpx;
+  padding: 0 32rpx 40rpx;
 }
 .profile-section {
   margin-top: 28rpx;
 }
 .profile-section__label {
   display: block;
-  margin: 0 8rpx 16rpx;
+  margin: 0 0 16rpx;
   font-size: 23rpx;
   color: #91a2af;
 }

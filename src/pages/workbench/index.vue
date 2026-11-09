@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import AppHeader from '@/components/AppHeader.vue'
 import AppTabBar from '@/components/AppTabBar.vue'
 import { businessGroups } from '@/data/navigation'
 import { useUserStore } from '@/stores/modules/user'
@@ -20,10 +19,6 @@ function openGroup(name: string) {
 
 <template>
   <view class="page workbench-page">
-    <AppHeader
-      title="工作台"
-      :subtitle="`${userStore.factoryName} · ${groups.length} 个业务分组可用`"
-    />
     <view class="workbench-content">
       <view class="section-heading"
         ><view
@@ -74,13 +69,16 @@ function openGroup(name: string) {
   background: #f4f7f9;
 }
 .workbench-content {
-  padding: 34rpx 24rpx 60rpx;
+  padding-top: calc(32rpx + var(--status-bar-height, 0px));
+  padding-right: 32rpx;
+  padding-bottom: 60rpx;
+  padding-left: 32rpx;
 }
 .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 8rpx 26rpx;
+  margin: 0 0 26rpx;
 }
 .section-heading__title {
   display: block;

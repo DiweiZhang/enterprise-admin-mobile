@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppHeader from '@/components/AppHeader.vue'
 import AppTabBar from '@/components/AppTabBar.vue'
 
 const activeTab = ref('全部')
@@ -64,7 +63,6 @@ const filteredMessages = computed(() =>
 
 <template>
   <view class="page messages-page">
-    <AppHeader title="消息中心" subtitle="及时响应每一项现场协同" />
     <view class="messages-content">
       <view class="message-tabs">
         <view
@@ -108,7 +106,10 @@ const filteredMessages = computed(() =>
   background: #f4f7f9;
 }
 .messages-content {
-  padding: 28rpx 24rpx 50rpx;
+  padding-top: calc(32rpx + var(--status-bar-height, 0px));
+  padding-right: 32rpx;
+  padding-bottom: 50rpx;
+  padding-left: 32rpx;
 }
 .message-tabs {
   display: flex;

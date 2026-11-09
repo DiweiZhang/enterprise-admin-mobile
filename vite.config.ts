@@ -38,6 +38,17 @@ export default defineConfig(({ mode }) => {
       exclude: ['uni-echarts'],
     },
     server: {
+      watch: {
+        // 依赖、缓存及编辑器临时文件不参与 HMR，避免 Windows 监听被占用的临时文件。
+        ignored: [
+          '**/.pnpm-store/**',
+          '**/.cache/**',
+          '**/.git/**',
+          '**/dist/**',
+          '**/.*.tmpdir/**',
+          '**/*.tmp',
+        ],
+      },
       host: '0.0.0.0',
       port: 5173,
       proxy:
